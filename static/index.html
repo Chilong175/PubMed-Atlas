@@ -4,107 +4,769 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PubMed 文献检索与可视化 Demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
     <style>
       :root {
         color-scheme: light;
         font-family:
           "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
-        background: #f5f7fa;
+        background: #f6f8fb;
         color: #172033;
+        --bg: #f6f8fb;
+        --panel: #ffffff;
+        --ink: #172033;
+        --muted: #607086;
+        --line: #dce3ee;
+        --line-soft: #edf1f6;
+        --blue: #1f5f99;
+        --green: #236b61;
+        --amber: #b7791f;
+        --red: #b42318;
+      }
+
+      * {
+        box-sizing: border-box;
       }
 
       body {
         margin: 0;
+        background:
+          linear-gradient(180deg, rgba(31, 95, 153, 0.08), transparent 280px),
+          var(--bg);
       }
 
-      main {
-        width: min(1120px, calc(100% - 32px));
-        margin: 40px auto;
-      }
-
-      h1 {
-        margin: 0 0 8px;
-        font-size: 32px;
-        letter-spacing: 0;
-      }
-
-      .subtitle {
-        margin: 0 0 28px;
-        color: #5d6b82;
-        font-size: 15px;
-      }
-
-      .panel {
-        background: #ffffff;
-        border: 1px solid #dce3ee;
-        border-radius: 8px;
-        padding: 20px;
-      }
-
-      .toolbar {
-        display: grid;
-        grid-template-columns: 1fr 140px;
-        gap: 12px;
-      }
-
+      button,
       input,
-      button {
-        border-radius: 6px;
+      select {
         font: inherit;
-        min-height: 44px;
-      }
-
-      input {
-        border: 1px solid #c8d2df;
-        padding: 0 12px;
       }
 
       button {
         border: 0;
-        background: #1f5f99;
-        color: #ffffff;
         cursor: pointer;
+      }
+
+      main {
+        width: min(1220px, calc(100% - 32px));
+        margin: 28px auto 40px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: #e7f0f8;
+        color: var(--blue);
+        font-weight: 800;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .status-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 12px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .workspace {
+        display: grid;
+        gap: 16px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 18px 40px rgba(23, 32, 51, 0.05);
+      }
+
+      .search-panel {
+        padding: 18px;
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: 1fr 132px 132px;
+        gap: 12px;
+      }
+
+      input,
+      select {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #c8d2df;
+        border-radius: 6px;
+        padding: 0 12px;
+        background: #ffffff;
+        color: var(--ink);
+      }
+
+      .primary {
+        min-height: 44px;
+        border-radius: 6px;
+        background: var(--blue);
+        color: #ffffff;
         font-weight: 700;
       }
 
-      .placeholder {
-        margin-top: 18px;
-        border-top: 1px solid #edf1f6;
-        padding-top: 18px;
-        color: #5d6b82;
+      .primary:disabled {
+        cursor: not-allowed;
+        opacity: 0.68;
+      }
+
+      .hint-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .grid-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .metric {
+        padding: 16px;
+      }
+
+      .metric-label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .metric-value {
+        margin-top: 8px;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .metric-note {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .grid-main {
+        display: grid;
+        grid-template-columns: 1.4fr 0.9fr;
+        gap: 16px;
+      }
+
+      .section {
+        padding: 18px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 17px;
+      }
+
+      .section-note {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .chart {
+        min-height: 260px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+      }
+
+      .wide-chart {
+        grid-column: 1 / -1;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 860px;
+        font-size: 13px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line-soft);
+        padding: 11px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f3f7fb;
+        color: #314158;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .title-cell {
+        max-width: 360px;
+        font-weight: 700;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 2px 9px;
+        background: #eaf3f2;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .badge-unknown {
+        background: #fff7e8;
+        color: var(--amber);
+      }
+
+      .review-box {
+        min-height: 220px;
+        white-space: pre-wrap;
+        line-height: 1.75;
+        color: #24324a;
+      }
+
+      .word-cloud {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-content: flex-start;
+        min-height: 180px;
+      }
+
+      .word {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 10px;
+        background: #fbfcfe;
+        color: #2f435d;
+      }
+
+      .top-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .top-item {
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 12px;
+      }
+
+      .top-title {
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .top-meta {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .empty {
+        color: var(--muted);
         line-height: 1.7;
       }
 
-      @media (max-width: 640px) {
-        main {
-          margin: 24px auto;
-        }
+      .error {
+        color: var(--red);
+      }
 
-        .toolbar {
+      @media (max-width: 940px) {
+        .grid-metrics,
+        .grid-main,
+        .chart-grid {
           grid-template-columns: 1fr;
         }
 
-        h1 {
-          font-size: 24px;
+        .search-row {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar,
+        .hint-row {
+          align-items: flex-start;
+          flex-direction: column;
         }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>PubMed 文献检索与可视化 Demo</h1>
-      <p class="subtitle">Python + FastAPI + Docker，本页先用于验证项目骨架和本地运行环境。</p>
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark">PM</div>
+          <div>
+            <h1>PubMed 文献检索与可视化 Demo</h1>
+            <p class="subtitle">检索、统计、影响力排序与中文综述的一体化演示工作台</p>
+          </div>
+        </div>
+        <div id="runtimeStatus" class="status-pill">等待检索</div>
+      </header>
 
-      <section class="panel">
-        <div class="toolbar">
-          <input type="text" value="cancer immunotherapy" aria-label="检索关键词" />
-          <button type="button">检索</button>
-        </div>
-        <div class="placeholder">
-          第 1 步只完成项目骨架。下一步会接入 PubMed 检索接口，之后再逐步加入统计分析、图表、词云、影响力排序和中文综述。
-        </div>
-      </section>
+      <div class="workspace">
+        <section class="panel search-panel">
+          <div class="search-row">
+            <input id="keyword" type="text" value="cancer immunotherapy" aria-label="检索关键词" />
+            <select id="limit" aria-label="返回数量">
+              <option value="10">返回 10 条</option>
+              <option value="20" selected>返回 20 条</option>
+              <option value="50">返回 50 条</option>
+              <option value="100">返回 100 条</option>
+            </select>
+            <button id="searchBtn" class="primary" type="button">检索分析</button>
+          </div>
+          <div class="hint-row">
+            <span>建议演示关键词：cancer immunotherapy、Alzheimer disease、CAR T therapy</span>
+            <span>IF/分区来自本地 Demo 期刊映射表，未匹配期刊显示 Unknown。</span>
+          </div>
+        </section>
+
+        <section class="grid-metrics">
+          <div class="panel metric">
+            <div class="metric-label">PubMed 总命中</div>
+            <div id="metricTotal" class="metric-value">--</div>
+            <div class="metric-note">esearch 返回总数</div>
+          </div>
+          <div class="panel metric">
+            <div class="metric-label">本次返回</div>
+            <div id="metricReturned" class="metric-value">--</div>
+            <div class="metric-note">进入分析的文献</div>
+          </div>
+          <div class="panel metric">
+            <div class="metric-label">匹配 IF</div>
+            <div id="metricWithIf" class="metric-value">--</div>
+            <div class="metric-note">可参与影响力排序</div>
+          </div>
+          <div class="panel metric">
+            <div class="metric-label">Unknown</div>
+            <div id="metricUnknown" class="metric-value">--</div>
+            <div class="metric-note">本地表暂未匹配</div>
+          </div>
+        </section>
+
+        <section class="grid-main">
+          <div class="panel section">
+            <div class="section-head">
+              <h2>统计图表</h2>
+              <span class="section-note">年份趋势、分区分布、影响因子分布</span>
+            </div>
+            <div class="chart-grid">
+              <div id="yearChart" class="chart wide-chart"></div>
+              <div id="quartileChart" class="chart"></div>
+              <div id="impactChart" class="chart"></div>
+            </div>
+          </div>
+
+          <aside class="panel section">
+            <div class="section-head">
+              <h2>AI 中文综述</h2>
+              <span id="reviewMeta" class="section-note">等待生成</span>
+            </div>
+            <div id="reviewBox" class="review-box empty">检索后将基于文献摘要生成约 500 字中文分点综述。</div>
+          </aside>
+        </section>
+
+        <section class="grid-main">
+          <div class="panel section">
+            <div class="section-head">
+              <h2>文献结果</h2>
+              <span id="articleMeta" class="section-note">暂无结果</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>标题</th>
+                    <th>年份</th>
+                    <th>期刊</th>
+                    <th>IF</th>
+                    <th>分区</th>
+                    <th>PMID</th>
+                  </tr>
+                </thead>
+                <tbody id="articleRows">
+                  <tr>
+                    <td colspan="6" class="empty">输入关键词并点击检索分析。</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <aside class="panel section">
+            <div class="section-head">
+              <h2>主题词频</h2>
+              <span class="section-note">标题与摘要高频词</span>
+            </div>
+            <div id="wordCloud" class="word-cloud empty">暂无词频数据。</div>
+          </aside>
+        </section>
+
+        <section class="panel section">
+          <div class="section-head">
+            <h2>近 5 年影响力 Top 文献</h2>
+            <span class="section-note">仅排序已匹配 IF 的文献</span>
+          </div>
+          <div id="topList" class="top-list empty">暂无 Top 文献。</div>
+        </section>
+      </div>
     </main>
+
+    <script>
+      const state = {
+        search: null,
+        analysis: null,
+        topImpact: null,
+        review: null,
+      };
+
+      const els = {
+        keyword: document.querySelector("#keyword"),
+        limit: document.querySelector("#limit"),
+        searchBtn: document.querySelector("#searchBtn"),
+        runtimeStatus: document.querySelector("#runtimeStatus"),
+        metricTotal: document.querySelector("#metricTotal"),
+        metricReturned: document.querySelector("#metricReturned"),
+        metricWithIf: document.querySelector("#metricWithIf"),
+        metricUnknown: document.querySelector("#metricUnknown"),
+        articleRows: document.querySelector("#articleRows"),
+        articleMeta: document.querySelector("#articleMeta"),
+        reviewBox: document.querySelector("#reviewBox"),
+        reviewMeta: document.querySelector("#reviewMeta"),
+        wordCloud: document.querySelector("#wordCloud"),
+        topList: document.querySelector("#topList"),
+      };
+
+      const charts = {
+        year: echarts.init(document.querySelector("#yearChart")),
+        quartile: echarts.init(document.querySelector("#quartileChart")),
+        impact: echarts.init(document.querySelector("#impactChart")),
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function setStatus(message, type = "normal") {
+        els.runtimeStatus.textContent = message;
+        els.runtimeStatus.classList.toggle("error", type === "error");
+      }
+
+      async function postJson(url, body) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.detail || "请求失败");
+        }
+        return payload;
+      }
+
+      async function runSearch() {
+        const keyword = els.keyword.value.trim();
+        const limit = Number(els.limit.value);
+        if (!keyword) {
+          setStatus("请输入关键词", "error");
+          return;
+        }
+
+        els.searchBtn.disabled = true;
+        setStatus("正在检索 PubMed...");
+        clearResultAreas();
+
+        try {
+          const search = await postJson("/api/search", { keyword, limit });
+          state.search = search;
+          setStatus("正在统计分析...");
+
+          const analyzeBody = { articles: search.articles };
+          const [analysis, topImpact] = await Promise.all([
+            postJson("/api/analyze", analyzeBody),
+            postJson("/api/top-impact", { articles: search.articles, years: 5, limit: 100 }),
+          ]);
+
+          state.analysis = analysis;
+          state.topImpact = topImpact;
+          renderAll();
+          setStatus("统计分析完成，正在生成综述...");
+
+          try {
+            state.review = await postJson("/api/review", analyzeBody);
+            renderReview();
+            setStatus("分析完成");
+          } catch (reviewError) {
+            els.reviewBox.className = "review-box empty";
+            els.reviewBox.textContent = `综述生成失败：${reviewError.message}`;
+            els.reviewMeta.textContent = "AI 综述暂不可用";
+            setStatus("统计分析完成，综述生成失败", "error");
+          }
+        } catch (error) {
+          setStatus(`失败：${error.message}`, "error");
+        } finally {
+          els.searchBtn.disabled = false;
+        }
+      }
+
+      function clearResultAreas() {
+        els.metricTotal.textContent = "--";
+        els.metricReturned.textContent = "--";
+        els.metricWithIf.textContent = "--";
+        els.metricUnknown.textContent = "--";
+        els.articleRows.innerHTML = `<tr><td colspan="6" class="empty">正在加载...</td></tr>`;
+        els.articleMeta.textContent = "加载中";
+        els.reviewBox.className = "review-box empty";
+        els.reviewBox.textContent = "正在生成综述...";
+        els.reviewMeta.textContent = "生成中";
+        els.wordCloud.className = "word-cloud empty";
+        els.wordCloud.textContent = "正在计算词频...";
+        els.topList.className = "top-list empty";
+        els.topList.textContent = "正在排序...";
+      }
+
+      function renderAll() {
+        renderMetrics();
+        renderCharts();
+        renderArticles();
+        renderWords();
+        renderTopImpact();
+      }
+
+      function renderMetrics() {
+        const total = state.search?.total_count ?? 0;
+        const returned = state.search?.returned_count ?? 0;
+        const articles = state.analysis?.articles ?? [];
+        const withIf = articles.filter((article) => article.impact_factor !== null).length;
+        const unknown = returned - withIf;
+        els.metricTotal.textContent = total.toLocaleString();
+        els.metricReturned.textContent = returned.toLocaleString();
+        els.metricWithIf.textContent = withIf.toLocaleString();
+        els.metricUnknown.textContent = Math.max(unknown, 0).toLocaleString();
+      }
+
+      function renderCharts() {
+        const yearData = state.analysis?.year_distribution ?? [];
+        charts.year.setOption({
+          tooltip: { trigger: "axis" },
+          grid: { left: 42, right: 18, top: 28, bottom: 36 },
+          xAxis: { type: "category", data: yearData.map((item) => item.year) },
+          yAxis: { type: "value", minInterval: 1 },
+          series: [
+            {
+              type: "line",
+              smooth: true,
+              data: yearData.map((item) => item.count),
+              areaStyle: { color: "rgba(31,95,153,0.12)" },
+              lineStyle: { color: "#1f5f99", width: 3 },
+              itemStyle: { color: "#1f5f99" },
+            },
+          ],
+        });
+
+        const quartileData = state.analysis?.quartile_distribution ?? [];
+        charts.quartile.setOption({
+          tooltip: { trigger: "item" },
+          series: [
+            {
+              type: "pie",
+              radius: ["48%", "72%"],
+              color: ["#236b61", "#1f5f99", "#7b8aa0", "#b7791f", "#c7d0dd"],
+              data: quartileData.map((item) => ({ name: item.quartile, value: item.count })),
+            },
+          ],
+        });
+
+        const impactData = state.analysis?.impact_factor_distribution ?? [];
+        charts.impact.setOption({
+          tooltip: { trigger: "axis" },
+          grid: { left: 38, right: 14, top: 28, bottom: 36 },
+          xAxis: { type: "category", data: impactData.map((item) => item.range) },
+          yAxis: { type: "value", minInterval: 1 },
+          series: [
+            {
+              type: "bar",
+              data: impactData.map((item) => item.count),
+              itemStyle: { color: "#236b61", borderRadius: [4, 4, 0, 0] },
+            },
+          ],
+        });
+      }
+
+      function renderArticles() {
+        const articles = state.analysis?.articles ?? [];
+        els.articleMeta.textContent = `${articles.length} 篇文献`;
+        if (!articles.length) {
+          els.articleRows.innerHTML = `<tr><td colspan="6" class="empty">暂无文献结果。</td></tr>`;
+          return;
+        }
+        els.articleRows.innerHTML = articles
+          .map((article) => {
+            const impact = article.impact_factor === null ? "Unknown" : Number(article.impact_factor).toFixed(1);
+            const quartile = article.quartile || "Unknown";
+            const badgeClass = quartile === "Unknown" ? "badge badge-unknown" : "badge";
+            return `
+              <tr>
+                <td class="title-cell">${escapeHtml(article.title)}</td>
+                <td>${escapeHtml(article.year || "未知")}</td>
+                <td>${escapeHtml(article.journal)}</td>
+                <td>${escapeHtml(impact)}</td>
+                <td><span class="${badgeClass}">${escapeHtml(quartile)}</span></td>
+                <td>${escapeHtml(article.pmid)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      function renderWords() {
+        const words = state.analysis?.word_frequencies ?? [];
+        if (!words.length) {
+          els.wordCloud.className = "word-cloud empty";
+          els.wordCloud.textContent = "暂无词频数据。";
+          return;
+        }
+        const max = Math.max(...words.map((item) => item.count));
+        els.wordCloud.className = "word-cloud";
+        els.wordCloud.innerHTML = words
+          .slice(0, 36)
+          .map((item) => {
+            const size = 12 + Math.round((item.count / max) * 12);
+            return `<span class="word" style="font-size:${size}px">${escapeHtml(item.word)} ${item.count}</span>`;
+          })
+          .join("");
+      }
+
+      function renderTopImpact() {
+        const articles = state.topImpact?.articles ?? [];
+        if (!articles.length) {
+          els.topList.className = "top-list empty";
+          els.topList.textContent = "当前返回文献中没有匹配到可排序的影响因子。";
+          return;
+        }
+        els.topList.className = "top-list";
+        els.topList.innerHTML = articles
+          .slice(0, 8)
+          .map(
+            (article, index) => `
+              <div class="top-item">
+                <div class="top-title">${index + 1}. ${escapeHtml(article.title)}</div>
+                <div class="top-meta">
+                  ${escapeHtml(article.year || "年份未知")} · ${escapeHtml(article.journal)}
+                  · IF ${Number(article.impact_factor).toFixed(1)}
+                  · PMID ${escapeHtml(article.pmid)}
+                </div>
+              </div>
+            `,
+          )
+          .join("");
+      }
+
+      function renderReview() {
+        if (!state.review) {
+          els.reviewBox.className = "review-box empty";
+          els.reviewBox.textContent = "暂无综述。";
+          els.reviewMeta.textContent = "等待生成";
+          return;
+        }
+        els.reviewBox.className = "review-box";
+        els.reviewBox.textContent = formatReviewText(state.review);
+        els.reviewMeta.textContent = state.review.used_fallback
+          ? `兜底结果 · ${state.review.source_count} 篇摘要`
+          : `AI 生成 · ${state.review.source_count} 篇摘要`;
+      }
+
+      function formatReviewText(review) {
+        if (!review.used_fallback) {
+          return review.review;
+        }
+        return review.review.replace(/^当前为兜底综述示例，原因：.*?。\n?/, "");
+      }
+
+      window.addEventListener("resize", () => {
+        charts.year.resize();
+        charts.quartile.resize();
+        charts.impact.resize();
+      });
+
+      els.searchBtn.addEventListener("click", runSearch);
+      els.keyword.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          runSearch();
+        }
+      });
+    </script>
   </body>
 </html>
-
