@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import get_settings
-from app.models.schemas import AnalyzeRequest, Article, SearchRequest, SearchResponse, TopImpactRequest
+from app.models.schemas import AnalyzeRequest, Article, ReviewRequest, SearchRequest, SearchResponse, TopImpactRequest
 from app.services.analyzer import analyze_articles, load_journal_metrics, enrich_articles, top_impact_articles
 from app.services.pubmed_client import PubMedArticle, PubMedClient, PubMedClientError
+from app.services.reviewer import ReviewError, generate_review
 
 
 router = APIRouter(prefix="/api", tags=["pubmed"])
@@ -54,6 +55,22 @@ def top_impact_pubmed_articles(payload: TopImpactRequest) -> dict:
             limit=payload.limit,
         ),
     }
+
+
+@router.post("/review")
+def review_pubmed_articles(payload: ReviewRequest) -> dict:
+    settings = get_settings()
+    articles = [_to_pubmed_article(article) for article in payload.articles]
+    try:
+        return generate_review(
+            articles,
+            api_key=settings.ai_api_key,
+            provider=settings.ai_provider,
+            model=settings.ai_model,
+            use_mock_on_error=settings.use_mock_on_error,
+        )
+    except ReviewError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 def _to_pubmed_article(article: Article) -> PubMedArticle:

@@ -31,3 +31,7 @@ class AnalyzeRequest(BaseModel):
 class TopImpactRequest(AnalyzeRequest):
     years: int = Field(5, ge=1, le=20)
     limit: int = Field(100, ge=1, le=500)
+
+
+class ReviewRequest(AnalyzeRequest):
+    pass
