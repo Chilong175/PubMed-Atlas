@@ -24,6 +24,14 @@ main { width: 100%; margin: 0; }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #365e62; outline-offset: 4px; }
 .workspace { max-width: 1440px; margin: 0 auto; padding: 44px 5% 64px; gap: 48px; }
 .workspace > *, .grid-main > *, .chart-grid > * { min-width: 0; }
+.metrics-tools { border-bottom: 1px solid var(--line); padding-bottom: 24px; font-size: 12px; line-height: 1.9; }
+.metrics-summary { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; margin-bottom: 14px; }
+#metricsTableStatus { color: var(--muted); }
+.metrics-tools summary { cursor: pointer; width: fit-content; }
+.metrics-import-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 20px; }
+.metrics-import-row a { color: var(--blue); }
+.metrics-import-row input { width: min(100%, 310px); height: auto; padding: 10px; font-size: 12px; }
+#unmatchedJournals { overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; }
 .workspace .panel { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
 .workspace .section { padding: 24px 0; border-top: 1px solid var(--line); }
 .grid-metrics { gap: 0; border-bottom: 1px solid var(--line); padding-bottom: 24px; }

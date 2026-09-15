@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import string
 from collections import Counter
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Iterable
 import pandas as pd
 
 from app.services.pubmed_client import PubMedArticle
+from app.services import journal_metrics
 
 
 DEFAULT_METRICS_PATH = Path("data/journal_metrics.csv")
@@ -62,23 +62,36 @@ class EnrichedArticle:
     impact_factor: float | None
     quartile: str
     metric_source_year: int | None
+    metric_source: str = ""
+    metric_match_method: str = "unmatched"
+    quartile_system: str = ""
+    journal_abbreviation: str = ""
+    issns: list[str] | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
-def load_journal_metrics(path: str | Path = DEFAULT_METRICS_PATH) -> pd.DataFrame:
-    df = pd.read_csv(path)
+def load_journal_metrics(path: str | Path | None = None) -> pd.DataFrame:
+    path = Path(path) if path is not None else (
+        journal_metrics.IMPORTED_METRICS_PATH if journal_metrics.IMPORTED_METRICS_PATH.exists() else DEFAULT_METRICS_PATH
+    )
+    df = pd.read_csv(path, dtype=str, keep_default_na=False)
     required = {"journal_name", "journal_alias", "impact_factor", "quartile", "source_year"}
     missing = required - set(df.columns)
     if missing:
         raise ValueError(f"journal metrics missing columns: {', '.join(sorted(missing))}")
 
     df = df.copy()
+    for column in ("issn", "eissn", "source", "quartile_system"):
+        if column not in df:
+            df[column] = ""
+    df["source"] = df["source"].replace("", "Demo 示例表（未经权威来源核验）")
     df["impact_factor"] = pd.to_numeric(df["impact_factor"], errors="coerce")
     df["source_year"] = pd.to_numeric(df["source_year"], errors="coerce").astype("Int64")
     df["journal_key"] = df["journal_name"].map(normalize_journal_name)
     df["alias_key"] = df["journal_alias"].map(normalize_journal_name)
+    df.attrs["data_source"] = "demo" if path == DEFAULT_METRICS_PATH else "imported"
     return df
 
 
@@ -90,7 +103,7 @@ def enrich_articles(
     enriched: list[EnrichedArticle] = []
 
     for article in articles:
-        metric = metric_lookup.get(normalize_journal_name(article.journal), {})
+        metric, match_method = _match_metric(article, metric_lookup)
         impact_factor = metric.get("impact_factor")
         source_year = metric.get("source_year")
         enriched.append(
@@ -105,6 +118,11 @@ def enrich_articles(
                 impact_factor=float(impact_factor) if pd.notna(impact_factor) else None,
                 quartile=str(metric.get("quartile") or "Unknown"),
                 metric_source_year=int(source_year) if pd.notna(source_year) else None,
+                metric_source=str(metric.get("source") or "Demo 示例表（未经权威来源核验）") if metric else "",
+                metric_match_method=match_method,
+                quartile_system=str(metric.get("quartile_system") or "未注明") if metric else "",
+                journal_abbreviation=article.journal_abbreviation,
+                issns=article.issns,
             )
         )
 
@@ -113,7 +131,7 @@ def enrich_articles(
 
 def analyze_articles(
     articles: Iterable[PubMedArticle],
-    metrics_path: str | Path = DEFAULT_METRICS_PATH,
+    metrics_path: str | Path | None = None,
     current_year: int | None = None,
 ) -> dict:
     metrics = load_journal_metrics(metrics_path)
@@ -121,6 +139,7 @@ def analyze_articles(
 
     return {
         "total_count": len(enriched),
+        "metric_coverage": metric_coverage(enriched, metrics),
         "year_distribution": year_distribution(enriched),
         "quartile_distribution": quartile_distribution(enriched),
         "impact_factor_distribution": impact_factor_distribution(enriched),
@@ -232,12 +251,7 @@ def word_frequencies(
 
 
 def normalize_journal_name(value: str | None) -> str:
-    if not value:
-        return ""
-    normalized = value.casefold().strip()
-    normalized = normalized.translate(str.maketrans("", "", string.punctuation))
-    normalized = re.sub(r"\s+", " ", normalized)
-    return normalized
+    return journal_metrics.normalize_name(value)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -247,10 +261,46 @@ def _tokenize(text: str) -> list[str]:
 
 def _build_metric_lookup(metrics: pd.DataFrame) -> dict[str, dict]:
     lookup: dict[str, dict] = {}
+    ambiguous: set[str] = set()
     for _, row in metrics.iterrows():
-        record = row.to_dict()
-        for key_column in ("journal_key", "alias_key"):
-            key = record.get(key_column)
-            if key:
-                lookup[str(key)] = record
+        record = row.where(pd.notna(row), "").to_dict()
+        keys = {"name:" + normalize_journal_name(name) for name in [record["journal_name"], *record.get("journal_alias", "").split(";")] if normalize_journal_name(name)}
+        keys.update("issn:" + value for column in ("issn", "eissn") if (value := journal_metrics.normalize_issn(record.get(column, ""))))
+        for key in keys:
+            if key in lookup:
+                ambiguous.add(key)
+            else:
+                lookup[key] = record
+    for key in ambiguous:
+        lookup.pop(key, None)
     return lookup
+
+
+def _match_metric(article: PubMedArticle, lookup: dict) -> tuple[dict, str]:
+    issns = {journal_metrics.normalize_issn(value) for value in article.issns} - {""}
+    matches = [lookup["issn:" + value] for value in issns if "issn:" + value in lookup]
+    if matches:
+        if any(record != matches[0] for record in matches[1:]):
+            return {}, "conflict"
+        return matches[0], "issn"
+    for name, method in ((article.journal, "name"), (article.journal_abbreviation, "abbreviation")):
+        record = lookup.get("name:" + normalize_journal_name(name))
+        if record:
+            known = {journal_metrics.normalize_issn(record.get(column, "")) for column in ("issn", "eissn")} - {""}
+            if issns and known and not issns & known:
+                continue
+            return record, method
+    return {}, "unmatched"
+
+
+def metric_coverage(articles: list[EnrichedArticle], metrics: pd.DataFrame) -> dict:
+    matched = sum(article.impact_factor is not None for article in articles)
+    missing = Counter(article.journal for article in articles if article.impact_factor is None)
+    return {
+        "total": len(articles), "matched": matched, "missing": len(articles) - matched,
+        "percent": round(matched / len(articles) * 100, 1) if articles else 0,
+        "data_source": metrics.attrs.get("data_source", "demo"),
+        "journal_count": len(metrics),
+        "source_years": sorted(int(year) for year in metrics["source_year"].dropna().unique()),
+        "unmatched_journals": [{"journal": journal, "count": count} for journal, count in missing.most_common()],
+    }

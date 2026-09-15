@@ -77,6 +77,11 @@ def init_db(database_url: str = DEFAULT_DATABASE_URL) -> None:
                 ON search_articles(pmid);
             """
         )
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(articles)")}
+        if "journal_abbreviation" not in columns:
+            conn.execute("ALTER TABLE articles ADD COLUMN journal_abbreviation TEXT NOT NULL DEFAULT ''")
+        if "issns_json" not in columns:
+            conn.execute("ALTER TABLE articles ADD COLUMN issns_json TEXT NOT NULL DEFAULT '[]'")
 
 
 def save_search_result(
@@ -114,9 +119,9 @@ def upsert_article(conn: sqlite3.Connection, article: PubMedArticle) -> None:
     conn.execute(
         """
         INSERT INTO articles (
-            pmid, title, abstract, year, journal, authors_json, doi
+            pmid, title, abstract, year, journal, authors_json, doi, journal_abbreviation, issns_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(pmid) DO UPDATE SET
             title = excluded.title,
             abstract = excluded.abstract,
@@ -124,6 +129,8 @@ def upsert_article(conn: sqlite3.Connection, article: PubMedArticle) -> None:
             journal = excluded.journal,
             authors_json = excluded.authors_json,
             doi = excluded.doi,
+            journal_abbreviation = excluded.journal_abbreviation,
+            issns_json = excluded.issns_json,
             updated_at = CURRENT_TIMESTAMP
         """,
         (
@@ -134,6 +141,8 @@ def upsert_article(conn: sqlite3.Connection, article: PubMedArticle) -> None:
             article.journal,
             json.dumps(article.authors, ensure_ascii=False),
             article.doi,
+            article.journal_abbreviation,
+            json.dumps(article.issns),
         ),
     )
 
@@ -161,7 +170,7 @@ def get_search_articles(search_id: int, database_url: str = DEFAULT_DATABASE_URL
     with connect(database_url) as conn:
         rows = conn.execute(
             """
-            SELECT a.pmid, a.title, a.abstract, a.year, a.journal, a.authors_json, a.doi
+            SELECT a.pmid, a.title, a.abstract, a.year, a.journal, a.authors_json, a.doi, a.journal_abbreviation, a.issns_json
             FROM search_articles sa
             JOIN articles a ON a.pmid = sa.pmid
             WHERE sa.search_id = ?
@@ -179,7 +188,8 @@ def get_search_articles(search_id: int, database_url: str = DEFAULT_DATABASE_URL
             journal=row["journal"],
             authors=json.loads(row["authors_json"]),
             doi=row["doi"],
+            journal_abbreviation=row["journal_abbreviation"],
+            issns=json.loads(row["issns_json"]),
         )
         for row in rows
     ]
-

@@ -1,4 +1,5 @@
 .env
+data/journal_metrics_imported.csv
 __pycache__/
 *.py[cod]
 .pytest_cache/

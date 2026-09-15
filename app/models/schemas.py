@@ -14,6 +14,12 @@ class Article(BaseModel):
     journal: str
     authors: list[str] = Field(default_factory=list)
     doi: str | None = None
+    journal_abbreviation: str = ""
+    issns: list[str] = Field(default_factory=list)
+
+
+class MetricsImportRequest(BaseModel):
+    csv_text: str = Field(..., min_length=1, max_length=2_000_000)
 
 
 class SearchResponse(BaseModel):

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import get_settings
-from app.models.schemas import AnalyzeRequest, Article, ReviewRequest, SearchRequest, SearchResponse, TopImpactRequest
+from app.models.schemas import AnalyzeRequest, Article, ReviewRequest, SearchRequest, SearchResponse, TopImpactRequest, MetricsImportRequest
+from app.services.journal_metrics import import_metrics, COLUMNS
+from fastapi.responses import Response
 from app.services.analyzer import analyze_articles, load_journal_metrics, enrich_articles, top_impact_articles
 from app.services.mock_data import load_mock_articles
 from app.services.pubmed_client import PubMedArticle, PubMedClient, PubMedClientError
@@ -9,6 +11,27 @@ from app.services.reviewer import ReviewError, generate_review
 
 
 router = APIRouter(prefix="/api", tags=["pubmed"])
+
+
+@router.get("/metrics/template")
+def metrics_template() -> Response:
+    return Response("\ufeff" + ",".join(COLUMNS) + "\r\n", media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="journal_metrics_template.csv"'})
+
+
+@router.get("/metrics")
+def metrics_status() -> dict:
+    metrics = load_journal_metrics()
+    return {"data_source": metrics.attrs["data_source"], "journal_count": len(metrics), "source_years": sorted(int(year) for year in metrics["source_year"].dropna().unique())}
+
+
+@router.post("/metrics/import")
+def import_journal_metrics(payload: MetricsImportRequest) -> dict:
+    try:
+        return import_metrics(payload.csv_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="指标表保存失败，请检查数据目录写入权限。") from exc
 
 
 @router.post("/search", response_model=SearchResponse)
@@ -91,4 +114,6 @@ def _to_pubmed_article(article: Article) -> PubMedArticle:
         journal=article.journal,
         authors=article.authors,
         doi=article.doi,
+        journal_abbreviation=article.journal_abbreviation,
+        issns=article.issns,
     )

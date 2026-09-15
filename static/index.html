@@ -357,6 +357,7 @@
     </style>
     <link rel="stylesheet" href="/static/scene.css" />
     <script type="module" src="/static/scene.js"></script>
+    <script defer src="/static/metrics-ui.js"></script>
   </head>
   <body>
     <main>
@@ -392,7 +393,7 @@
           </div>
           <div class="hint-row">
             <span>文献检索 · 研究趋势 · 中文综述</span>
-            <span>IF/分区来自本地 Demo 期刊映射表，未匹配期刊显示 Unknown。</span>
+            <span id="metricsSourceHint">IF/分区来自本地指标表，缺失值不参与排序。</span>
           </div>
         </section>
       </section>
@@ -420,10 +421,29 @@
             <div class="metric-note">可参与影响力排序</div>
           </div>
           <div class="panel metric">
-            <div class="metric-label">Unknown</div>
+            <div class="metric-label">暂无指标数据</div>
             <div id="metricUnknown" class="metric-value">--</div>
             <div class="metric-note">本地表暂未匹配</div>
           </div>
+        </section>
+
+        <section class="metrics-tools" aria-label="期刊指标数据">
+          <div class="metrics-summary">
+            <span id="metricsCoverage" role="status">检索后显示指标匹配覆盖率</span>
+            <span id="metricsTableStatus">正在读取指标表...</span>
+          </div>
+          <details>
+            <summary>期刊指标与数据导入</summary>
+            <div class="metrics-import-row">
+              <a href="/api/metrics/template" download>下载 CSV 模板</a>
+              <label for="metricsFile">导入指标表（UTF-8 CSV）</label>
+              <input id="metricsFile" type="file" accept=".csv,text/csv" />
+            </div>
+            <p class="section-note">必填：journal_name、impact_factor、source_year、source。可选：journal_alias（分号分隔）、issn、eissn、quartile、quartile_system。有分区时须注明体系/类别；每张表使用同一指标年份。</p>
+            <p class="section-note">请使用有权使用的数据。导入成功后以新表替换当前指标源，不与 Demo 数值混合。</p>
+            <p id="metricsImportStatus" role="status"></p>
+            <div id="unmatchedJournals" class="section-note">尚无待补充期刊。</div>
+          </details>
         </section>
 
         <section class="grid-main" id="overview">
@@ -464,12 +484,13 @@
                     <th>期刊</th>
                     <th>IF</th>
                     <th>分区</th>
+                    <th>指标来源 / 年份</th>
                     <th>PMID</th>
                   </tr>
                 </thead>
                 <tbody id="articleRows">
                   <tr>
-                    <td colspan="6" class="empty">输入关键词并点击检索分析。</td>
+                    <td colspan="7" class="empty">输入关键词并点击检索分析。</td>
                   </tr>
                 </tbody>
               </table>
@@ -488,7 +509,7 @@
         <section class="panel section" id="ranking">
           <div class="section-head">
             <h2><span class="section-index">05</span>近 5 年影响力 Top 文献</h2>
-            <span class="section-note">仅排序已匹配 IF 的文献</span>
+            <span class="section-note">仅对本次返回且已匹配 IF 的文献排序，展示前 8 篇；期刊 IF 不等于论文影响力。</span>
           </div>
           <div id="topList" class="top-list empty">暂无 Top 文献。</div>
         </section>
@@ -579,6 +600,7 @@
         }
 
         els.searchBtn.disabled = true;
+        document.querySelector('#metricsFile').disabled = true;
         setStatus("正在检索 PubMed...");
         clearResultAreas();
 
@@ -613,6 +635,7 @@
           setStatus(`失败：${error.message}`, "error");
         } finally {
           els.searchBtn.disabled = false;
+          document.querySelector('#metricsFile').disabled = false;
         }
       }
 
@@ -621,7 +644,9 @@
         els.metricReturned.textContent = "--";
         els.metricWithIf.textContent = "--";
         els.metricUnknown.textContent = "--";
-        els.articleRows.innerHTML = `<tr><td colspan="6" class="empty">正在加载...</td></tr>`;
+        els.articleRows.innerHTML = `<tr><td colspan="7" class="empty">正在加载...</td></tr>`;
+        document.querySelector('#metricsCoverage').textContent = '正在计算匹配覆盖率...';
+        document.querySelector('#unmatchedJournals').textContent = '';
         els.articleMeta.textContent = "加载中";
         els.reviewBox.className = "review-box empty";
         els.reviewBox.textContent = "正在生成综述...";
@@ -650,6 +675,7 @@
         els.metricReturned.textContent = returned.toLocaleString();
         els.metricWithIf.textContent = withIf.toLocaleString();
         els.metricUnknown.textContent = Math.max(unknown, 0).toLocaleString();
+        renderMetricCoverage(state.analysis?.metric_coverage);
       }
 
       function renderCharts() {
@@ -684,7 +710,7 @@
               center: ["50%", "48%"],
               label: { show: false },
               itemStyle: { borderColor: "#eeeef2", borderWidth: 3 },
-              data: quartileData.map((item) => ({ name: item.quartile, value: item.count })),
+              data: quartileData.map((item) => ({ name: item.quartile === "Unknown" ? "暂无分区数据" : item.quartile, value: item.count })),
             },
           ],
         });
@@ -694,7 +720,7 @@
           title: { text: "影响因子分布", left: 8, top: 8 },
           tooltip: { trigger: "axis" },
           grid: { left: 38, right: 14, top: 48, bottom: 36 },
-          xAxis: { type: "category", data: impactData.map((item) => item.range) },
+          xAxis: { type: "category", data: impactData.map((item) => item.range === "Unknown" ? "暂无数据" : item.range) },
           yAxis: { type: "value", minInterval: 1 },
           series: [
             {
@@ -735,12 +761,12 @@
         const articles = state.analysis?.articles ?? [];
         els.articleMeta.textContent = `${articles.length} 篇文献`;
         if (!articles.length) {
-          els.articleRows.innerHTML = `<tr><td colspan="6" class="empty">暂无文献结果。</td></tr>`;
+          els.articleRows.innerHTML = `<tr><td colspan="7" class="empty">暂无文献结果。</td></tr>`;
           return;
         }
         els.articleRows.innerHTML = articles
           .map((article) => {
-            const impact = article.impact_factor === null ? "Unknown" : Number(article.impact_factor).toFixed(1);
+            const impact = article.impact_factor === null ? "暂无指标数据" : Number(article.impact_factor).toFixed(1);
             const quartile = article.quartile || "Unknown";
             const badgeClass = quartile === "Unknown" ? "badge badge-unknown" : "badge";
             return `
@@ -749,7 +775,8 @@
                 <td>${escapeHtml(article.year || "未知")}</td>
                 <td>${escapeHtml(article.journal)}</td>
                 <td>${escapeHtml(impact)}</td>
-                <td><span class="${badgeClass}">${escapeHtml(quartile)}</span></td>
+                <td><span class="${badgeClass}" title="${escapeHtml(article.quartile_system || '')}">${escapeHtml(quartile === 'Unknown' ? '暂无分区数据' : quartile)}</span></td>
+                <td>${escapeHtml(article.metric_source || '未匹配')}<br>${escapeHtml(article.metric_source_year || '—')}</td>
                 <td>${escapeHtml(article.pmid)}</td>
               </tr>
             `;

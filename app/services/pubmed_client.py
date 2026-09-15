@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import requests
@@ -24,6 +24,8 @@ class PubMedArticle:
     journal: str
     authors: list[str]
     doi: str | None = None
+    journal_abbreviation: str = ""
+    issns: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -147,6 +149,13 @@ class PubMedClient:
             journal=journal or "(Unknown journal)",
             authors=authors,
             doi=doi,
+            journal_abbreviation=self._text(node, ".//Journal/ISOAbbreviation"),
+            issns=list(dict.fromkeys(
+                value for value in [
+                    *(self._join_text(item) for item in node.findall(".//Journal/ISSN")),
+                    self._text(node, ".//MedlineJournalInfo/ISSNLinking"),
+                ] if value
+            )),
         )
 
     def _extract_year(self, node: ET.Element) -> int | None:
