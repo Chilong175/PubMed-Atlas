@@ -355,7 +355,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="/static/scene.css" />
+    <link rel="stylesheet" href="/static/scene.css?v=4" />
     <script type="module" src="/static/scene.js"></script>
     <script defer src="/static/metrics-ui.js"></script>
   </head>
@@ -383,12 +383,21 @@
         <section class="panel search-panel">
           <div class="search-row">
             <input id="keyword" type="text" value="cancer immunotherapy" aria-label="检索关键词" />
-            <select id="limit" aria-label="返回数量">
+            <select id="limit" class="native-limit" aria-label="返回数量">
               <option value="10">返回 10 条</option>
               <option value="20" selected>返回 20 条</option>
               <option value="50">返回 50 条</option>
               <option value="100">返回 100 条</option>
             </select>
+            <div class="limit-picker" id="limitPicker">
+              <button class="limit-trigger" id="limitTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">返回 20 条 <span aria-hidden="true">⌄</span></button>
+              <div class="limit-menu" id="limitMenu" role="listbox" aria-label="返回数量">
+                <button type="button" role="option" data-value="10">返回 10 条</button>
+                <button type="button" role="option" data-value="20" aria-selected="true">返回 20 条</button>
+                <button type="button" role="option" data-value="50">返回 50 条</button>
+                <button type="button" role="option" data-value="100">返回 100 条</button>
+              </div>
+            </div>
             <button id="searchBtn" class="primary" type="button">检索分析</button>
           </div>
           <div class="hint-row">
@@ -859,6 +868,36 @@
       els.keyword.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           runSearch();
+        }
+      });
+
+      const limitPicker = document.querySelector("#limitPicker");
+      const limitTrigger = document.querySelector("#limitTrigger");
+      const limitMenu = document.querySelector("#limitMenu");
+      limitTrigger.addEventListener("click", () => {
+        const open = limitTrigger.getAttribute("aria-expanded") === "true";
+        limitTrigger.setAttribute("aria-expanded", String(!open));
+        limitPicker.classList.toggle("is-open", !open);
+      });
+      limitMenu.addEventListener("click", (event) => {
+        const option = event.target.closest("[data-value]");
+        if (!option) return;
+        els.limit.value = option.dataset.value;
+        limitTrigger.firstChild.textContent = option.textContent + " ";
+        limitMenu.querySelectorAll("[role=option]").forEach((item) => item.setAttribute("aria-selected", String(item === option)));
+        limitTrigger.setAttribute("aria-expanded", "false");
+        limitPicker.classList.remove("is-open");
+      });
+      limitTrigger.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          limitTrigger.setAttribute("aria-expanded", "false");
+          limitPicker.classList.remove("is-open");
+        }
+      });
+      document.addEventListener("click", (event) => {
+        if (!limitPicker.contains(event.target)) {
+          limitTrigger.setAttribute("aria-expanded", "false");
+          limitPicker.classList.remove("is-open");
         }
       });
     </script>

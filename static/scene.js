@@ -12,8 +12,10 @@ function createScene() {
   renderer.setClearColor(0xe9e9ed);
   host.append(renderer.domElement);
   const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xe9e9ed, 8, 22);
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
   const time = { value: 0 };
+  let compact = false;
   const sphere = new THREE.Mesh(new THREE.SphereGeometry(1.28, 96, 64), new THREE.ShaderMaterial({
     uniforms: { time },
     vertexShader: `
@@ -74,13 +76,31 @@ function createScene() {
   }));
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
+  const particleCount = compact ? 420 : 760;
+  const particlePositions = new Float32Array(particleCount * 3);
+  const particleSizes = new Float32Array(particleCount);
+  for (let i = 0; i < particleCount; i += 1) {
+    const radius = 2.5 + Math.random() * 8.5;
+    const angle = Math.random() * Math.PI * 2;
+    particlePositions[i * 3] = Math.cos(angle) * radius;
+    particlePositions[i * 3 + 1] = Math.random() * 6.8 - 1.1;
+    particlePositions[i * 3 + 2] = Math.sin(angle) * radius - 1.0;
+    particleSizes[i] = 1.5 + Math.random() * 3.5;
+  }
+  const particles = new THREE.Points(
+    new THREE.BufferGeometry(),
+    new THREE.PointsMaterial({ color: 0xffffff, size: 0.035, transparent: true, opacity: 0.62, sizeAttenuation: true }),
+  );
+  particles.geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+  particles.geometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+  particles.position.y = 0.1;
+  scene.add(particles);
   const pointer = new THREE.Vector2();
   let paused = reducedMotion.matches;
   let visible = true;
   let frame = 0;
   let previous = 0;
   let elapsed = 0;
-  let compact = false;
   function resize() {
     const { width, height } = host.getBoundingClientRect();
     compact = width < 700;
@@ -96,6 +116,8 @@ function createScene() {
     sphere.position.y = (compact ? 2.6 : 2.12) + Math.sin(elapsed * .65) * .09;
     sphere.rotation.y = elapsed * .07 + pointer.x * .12;
     sphere.rotation.z = pointer.y * .045;
+    particles.rotation.y = elapsed * .012 + pointer.x * .06;
+    particles.rotation.x = pointer.y * .025;
     renderer.render(scene, camera);
   }
   function tick(now) {
