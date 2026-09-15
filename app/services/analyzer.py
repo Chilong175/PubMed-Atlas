@@ -124,6 +124,7 @@ def analyze_articles(
         "year_distribution": year_distribution(enriched),
         "quartile_distribution": quartile_distribution(enriched),
         "impact_factor_distribution": impact_factor_distribution(enriched),
+        "top_journals": top_journals(enriched),
         "top_impact_articles": top_impact_articles(enriched, current_year=current_year),
         "word_frequencies": word_frequencies(enriched),
         "articles": [article.to_dict() for article in enriched],
@@ -164,6 +165,35 @@ def impact_factor_distribution(articles: Iterable[EnrichedArticle]) -> list[dict
                 counter[label] += 1
                 break
     return [{"range": label, "count": counter[label]} for label, *_ in bins]
+
+
+def top_journals(articles: Iterable[EnrichedArticle], limit: int = 10) -> list[dict]:
+    summary: dict[str, dict] = {}
+    for article in articles:
+        journal = article.journal or "(Unknown journal)"
+        record = summary.setdefault(
+            journal,
+            {
+                "journal": journal,
+                "count": 0,
+                "impact_factor": article.impact_factor,
+                "quartile": article.quartile or "Unknown",
+            },
+        )
+        record["count"] += 1
+        if record["impact_factor"] is None and article.impact_factor is not None:
+            record["impact_factor"] = article.impact_factor
+            record["quartile"] = article.quartile or "Unknown"
+
+    journals = list(summary.values())
+    journals.sort(
+        key=lambda item: (
+            -item["count"],
+            -(item["impact_factor"] if item["impact_factor"] is not None else -1),
+            item["journal"].casefold(),
+        ),
+    )
+    return journals[:limit]
 
 
 def top_impact_articles(
@@ -224,4 +254,3 @@ def _build_metric_lookup(metrics: pd.DataFrame) -> dict[str, dict]:
             if key:
                 lookup[str(key)] = record
     return lookup
-

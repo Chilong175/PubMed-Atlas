@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException
 from app.core.config import get_settings
 from app.models.schemas import AnalyzeRequest, Article, ReviewRequest, SearchRequest, SearchResponse, TopImpactRequest
 from app.services.analyzer import analyze_articles, load_journal_metrics, enrich_articles, top_impact_articles
+from app.services.mock_data import load_mock_articles
 from app.services.pubmed_client import PubMedArticle, PubMedClient, PubMedClientError
 from app.services.reviewer import ReviewError, generate_review
 
@@ -14,16 +15,24 @@ router = APIRouter(prefix="/api", tags=["pubmed"])
 def search_pubmed(payload: SearchRequest) -> SearchResponse:
     settings = get_settings()
     client = PubMedClient(api_key=settings.pubmed_api_key)
+    data_source = "pubmed"
+    source_message = None
     try:
         total_count, articles = client.search(payload.keyword, payload.limit)
     except PubMedClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        if not settings.use_mock_on_error:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        total_count, articles = load_mock_articles(payload.keyword, payload.limit)
+        data_source = "mock"
+        source_message = "PubMed 调用失败，已使用本地 Mock 数据兜底。"
 
     return SearchResponse(
         keyword=payload.keyword,
         total_count=total_count,
         returned_count=len(articles),
         articles=[Article(**article.to_dict()) for article in articles],
+        data_source=data_source,
+        source_message=source_message,
     )
 
 

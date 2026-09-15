@@ -15,3 +15,8 @@ Fields:
 - `source_year`: Metric source year.
 - `notes`: Data note.
 
+## mock_articles.json
+
+`mock_articles.json` is used when PubMed is unavailable and `USE_MOCK_ON_ERROR=true`.
+
+It keeps the interview demo runnable even if the network, API key, or upstream PubMed service fails. The mock records are shaped like parsed PubMed articles, so the same analysis, visualization, ranking, and review code paths are exercised.

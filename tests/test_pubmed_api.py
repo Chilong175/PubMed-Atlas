@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.pubmed_client import PubMedClientError
 
 
 class PubMedApiAnalysisTest(TestCase):
@@ -82,3 +83,18 @@ class PubMedApiAnalysisTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["review"], "1. 中文综述")
         self.assertEqual(len(mock_generate_review.call_args.args[0]), 2)
+
+    @patch("app.api.pubmed.PubMedClient.search")
+    def test_search_uses_mock_data_when_pubmed_fails(self, mock_search) -> None:
+        mock_search.side_effect = PubMedClientError("network unavailable")
+
+        response = self.client.post(
+            "/api/search",
+            json={"keyword": "cancer immunotherapy", "limit": 3},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["data_source"], "mock")
+        self.assertEqual(payload["returned_count"], 3)
+        self.assertIn("Mock", payload["source_message"])

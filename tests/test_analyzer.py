@@ -7,6 +7,7 @@ from app.services.analyzer import (
     enrich_articles,
     impact_factor_distribution,
     quartile_distribution,
+    top_journals,
     top_impact_articles,
     word_frequencies,
     year_distribution,
@@ -90,6 +91,8 @@ class AnalyzerTest(TestCase):
         )
         self.assertEqual(quartile_distribution(enriched), [{"quartile": "Q1", "count": 2}, {"quartile": "Unknown", "count": 1}])
         self.assertEqual(impact_factor_distribution(enriched)[-1], {"range": "50+", "count": 1})
+        self.assertEqual(top_journals(enriched)[0]["journal"], "Cancer Cell")
+        self.assertEqual(top_journals(enriched)[0]["count"], 1)
 
         top_articles = top_impact_articles(enriched, current_year=2025)
         self.assertEqual([article["pmid"] for article in top_articles], ["1", "2"])
@@ -103,5 +106,5 @@ class AnalyzerTest(TestCase):
         analysis = analyze_articles(self.articles, metrics_path="data/journal_metrics.csv", current_year=2025)
         self.assertEqual(analysis["total_count"], 3)
         self.assertIn("year_distribution", analysis)
+        self.assertIn("top_journals", analysis)
         self.assertIn("top_impact_articles", analysis)
-

@@ -414,12 +414,13 @@
           <div class="panel section">
             <div class="section-head">
               <h2>统计图表</h2>
-              <span class="section-note">年份趋势、分区分布、影响因子分布</span>
+              <span class="section-note">年份趋势、分区分布、影响因子分布、Top 期刊</span>
             </div>
             <div class="chart-grid">
               <div id="yearChart" class="chart wide-chart"></div>
               <div id="quartileChart" class="chart"></div>
               <div id="impactChart" class="chart"></div>
+              <div id="topJournalChart" class="chart wide-chart"></div>
             </div>
           </div>
 
@@ -507,6 +508,7 @@
         year: echarts.init(document.querySelector("#yearChart")),
         quartile: echarts.init(document.querySelector("#quartileChart")),
         impact: echarts.init(document.querySelector("#impactChart")),
+        topJournal: echarts.init(document.querySelector("#topJournalChart")),
       };
 
       function escapeHtml(value) {
@@ -551,7 +553,8 @@
         try {
           const search = await postJson("/api/search", { keyword, limit });
           state.search = search;
-          setStatus("正在统计分析...");
+          const sourceLabel = search.data_source === "mock" ? "本地 Mock 数据" : "PubMed";
+          setStatus(`正在统计分析... 数据来源：${sourceLabel}`);
 
           const analyzeBody = { articles: search.articles };
           const [analysis, topImpact] = await Promise.all([
@@ -562,17 +565,17 @@
           state.analysis = analysis;
           state.topImpact = topImpact;
           renderAll();
-          setStatus("统计分析完成，正在生成综述...");
+          setStatus(`${sourceLabel} 统计分析完成，正在生成综述...`);
 
           try {
             state.review = await postJson("/api/review", analyzeBody);
             renderReview();
-            setStatus("分析完成");
+            setStatus(`${sourceLabel} 分析完成`);
           } catch (reviewError) {
             els.reviewBox.className = "review-box empty";
             els.reviewBox.textContent = `综述生成失败：${reviewError.message}`;
             els.reviewMeta.textContent = "AI 综述暂不可用";
-            setStatus("统计分析完成，综述生成失败", "error");
+            setStatus(`${sourceLabel} 统计分析完成，综述生成失败`, "error");
           }
         } catch (error) {
           setStatus(`失败：${error.message}`, "error");
@@ -660,6 +663,28 @@
               type: "bar",
               data: impactData.map((item) => item.count),
               itemStyle: { color: "#236b61", borderRadius: [4, 4, 0, 0] },
+            },
+          ],
+        });
+
+        const topJournals = state.analysis?.top_journals ?? [];
+        charts.topJournal.setOption({
+          tooltip: { trigger: "axis" },
+          grid: { left: 160, right: 20, top: 24, bottom: 28 },
+          xAxis: { type: "value", minInterval: 1 },
+          yAxis: {
+            type: "category",
+            data: topJournals.map((item) => item.journal).reverse(),
+            axisLabel: {
+              width: 140,
+              overflow: "truncate",
+            },
+          },
+          series: [
+            {
+              type: "bar",
+              data: topJournals.map((item) => item.count).reverse(),
+              itemStyle: { color: "#1f5f99", borderRadius: [0, 4, 4, 0] },
             },
           ],
         });
@@ -759,6 +784,7 @@
         charts.year.resize();
         charts.quartile.resize();
         charts.impact.resize();
+        charts.topJournal.resize();
       });
 
       els.searchBtn.addEventListener("click", runSearch);

@@ -21,6 +21,8 @@ class SearchResponse(BaseModel):
     total_count: int
     returned_count: int
     articles: list[Article]
+    data_source: str = "pubmed"
+    source_message: str | None = None
 
 
 class AnalyzeRequest(BaseModel):
