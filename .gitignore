@@ -3,9 +3,9 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .venv/
+.codex_deps/
 data/*.db
 data/*.sqlite
 rendered_pubmed_requirements/
 rendered_pubmed_tech_plan/
 rendered_pubmed_tech_plan_final/
-
