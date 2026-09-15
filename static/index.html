@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PubMed 文献检索与可视化 Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+        background: #f5f7fa;
+        color: #172033;
+      }
+
+      body {
+        margin: 0;
+      }
+
+      main {
+        width: min(1120px, calc(100% - 32px));
+        margin: 40px auto;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 32px;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        margin: 0 0 28px;
+        color: #5d6b82;
+        font-size: 15px;
+      }
+
+      .panel {
+        background: #ffffff;
+        border: 1px solid #dce3ee;
+        border-radius: 8px;
+        padding: 20px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 12px;
+      }
+
+      input,
+      button {
+        border-radius: 6px;
+        font: inherit;
+        min-height: 44px;
+      }
+
+      input {
+        border: 1px solid #c8d2df;
+        padding: 0 12px;
+      }
+
+      button {
+        border: 0;
+        background: #1f5f99;
+        color: #ffffff;
+        cursor: pointer;
+        font-weight: 700;
+      }
+
+      .placeholder {
+        margin-top: 18px;
+        border-top: 1px solid #edf1f6;
+        padding-top: 18px;
+        color: #5d6b82;
+        line-height: 1.7;
+      }
+
+      @media (max-width: 640px) {
+        main {
+          margin: 24px auto;
+        }
+
+        .toolbar {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>PubMed 文献检索与可视化 Demo</h1>
+      <p class="subtitle">Python + FastAPI + Docker，本页先用于验证项目骨架和本地运行环境。</p>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input type="text" value="cancer immunotherapy" aria-label="检索关键词" />
+          <button type="button">检索</button>
+        </div>
+        <div class="placeholder">
+          第 1 步只完成项目骨架。下一步会接入 PubMed 检索接口，之后再逐步加入统计分析、图表、词云、影响力排序和中文综述。
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
+
