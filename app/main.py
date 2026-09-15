@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.api.pubmed import router as pubmed_router
 from app.core.config import get_settings
 
 
@@ -12,6 +13,7 @@ app = FastAPI(
 )
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.include_router(pubmed_router)
 
 
 @app.get("/")
@@ -29,4 +31,3 @@ def health() -> dict:
         "ai_provider": settings.ai_provider,
         "database_url": settings.database_url,
     }
-

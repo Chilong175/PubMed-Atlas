@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     pubmed_api_key: str = ""
     ai_provider: str = "mock"
+    ai_model: str = ""
     ai_api_key: str = ""
     database_url: str = "sqlite:///data/pubmed_demo.db"
     use_mock_on_error: bool = True
@@ -16,4 +17,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
