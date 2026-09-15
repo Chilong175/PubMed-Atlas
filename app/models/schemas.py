@@ -22,3 +22,12 @@ class SearchResponse(BaseModel):
     returned_count: int
     articles: list[Article]
 
+
+class AnalyzeRequest(BaseModel):
+    articles: list[Article] = Field(default_factory=list)
+    current_year: int | None = Field(default=None, ge=1900, le=2100)
+
+
+class TopImpactRequest(AnalyzeRequest):
+    years: int = Field(5, ge=1, le=20)
+    limit: int = Field(100, ge=1, le=500)

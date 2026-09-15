@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.config import get_settings
-from app.models.schemas import Article, SearchRequest, SearchResponse
-from app.services.pubmed_client import PubMedClient, PubMedClientError
+from app.models.schemas import AnalyzeRequest, Article, SearchRequest, SearchResponse, TopImpactRequest
+from app.services.analyzer import analyze_articles, load_journal_metrics, enrich_articles, top_impact_articles
+from app.services.pubmed_client import PubMedArticle, PubMedClient, PubMedClientError
 
 
 router = APIRouter(prefix="/api", tags=["pubmed"])
@@ -22,4 +23,46 @@ def search_pubmed(payload: SearchRequest) -> SearchResponse:
         total_count=total_count,
         returned_count=len(articles),
         articles=[Article(**article.to_dict()) for article in articles],
+    )
+
+
+@router.post("/analyze")
+def analyze_pubmed_articles(payload: AnalyzeRequest) -> dict:
+    articles = [_to_pubmed_article(article) for article in payload.articles]
+    try:
+        return analyze_articles(articles, current_year=payload.current_year)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/top-impact")
+def top_impact_pubmed_articles(payload: TopImpactRequest) -> dict:
+    articles = [_to_pubmed_article(article) for article in payload.articles]
+    try:
+        metrics = load_journal_metrics()
+        enriched_articles = enrich_articles(articles, metrics)
+    except ValueError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {
+        "years": payload.years,
+        "limit": payload.limit,
+        "articles": top_impact_articles(
+            enriched_articles,
+            current_year=payload.current_year,
+            years=payload.years,
+            limit=payload.limit,
+        ),
+    }
+
+
+def _to_pubmed_article(article: Article) -> PubMedArticle:
+    return PubMedArticle(
+        pmid=article.pmid,
+        title=article.title,
+        abstract=article.abstract,
+        year=article.year,
+        journal=article.journal,
+        authors=article.authors,
+        doi=article.doi,
     )
