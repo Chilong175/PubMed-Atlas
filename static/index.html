@@ -355,21 +355,30 @@
         }
       }
     </style>
+    <link rel="stylesheet" href="/static/scene.css" />
+    <script type="module" src="/static/scene.js"></script>
   </head>
   <body>
     <main>
+      <section class="search-stage" id="searchStage">
+      <div id="sceneBackground" aria-hidden="true"></div>
       <header class="topbar">
         <div class="brand">
           <div class="mark">PM</div>
           <div>
-            <h1>PubMed 文献检索与可视化 Demo</h1>
-            <p class="subtitle">检索、统计、影响力排序与中文综述的一体化演示工作台</p>
+            <span class="brand-name">PubMed Atlas</span>
+            <p class="subtitle">文献检索与研究洞察</p>
           </div>
         </div>
         <div id="runtimeStatus" class="status-pill">等待检索</div>
       </header>
 
-      <div class="workspace">
+      <div class="stage-copy">
+        <p class="stage-eyebrow">PUBMED / RESEARCH ATLAS</p>
+        <h1>PubMed 文献探索</h1>
+        <p>从一个问题出发，发现研究的下一步。</p>
+      </div>
+      <button class="motion-toggle" id="motionToggle" type="button" aria-label="暂停背景动画" title="暂停背景动画" aria-pressed="false" disabled><span aria-hidden="true">Ⅱ</span></button>
         <section class="panel search-panel">
           <div class="search-row">
             <input id="keyword" type="text" value="cancer immunotherapy" aria-label="检索关键词" />
@@ -382,11 +391,18 @@
             <button id="searchBtn" class="primary" type="button">检索分析</button>
           </div>
           <div class="hint-row">
-            <span>建议演示关键词：cancer immunotherapy、Alzheimer disease、CAR T therapy</span>
+            <span>文献检索 · 研究趋势 · 中文综述</span>
             <span>IF/分区来自本地 Demo 期刊映射表，未匹配期刊显示 Unknown。</span>
           </div>
         </section>
-
+      </section>
+      <nav class="result-nav" aria-label="结果区域导航">
+        <span class="nav-brand">研究工作台</span>
+        <a href="#overview">研究概览</a>
+        <a href="#literature">文献与主题</a>
+        <a href="#ranking">影响力排序</a>
+      </nav>
+      <div class="workspace">
         <section class="grid-metrics">
           <div class="panel metric">
             <div class="metric-label">PubMed 总命中</div>
@@ -410,33 +426,33 @@
           </div>
         </section>
 
-        <section class="grid-main">
+        <section class="grid-main" id="overview">
           <div class="panel section">
             <div class="section-head">
-              <h2>统计图表</h2>
+              <h2><span class="section-index">01</span>研究趋势</h2>
               <span class="section-note">年份趋势、分区分布、影响因子分布、Top 期刊</span>
             </div>
             <div class="chart-grid">
-              <div id="yearChart" class="chart wide-chart"></div>
-              <div id="quartileChart" class="chart"></div>
-              <div id="impactChart" class="chart"></div>
-              <div id="topJournalChart" class="chart wide-chart"></div>
+              <div id="yearChart" class="chart wide-chart" role="img" aria-label="年度发文趋势"></div>
+              <div id="quartileChart" class="chart" role="img" aria-label="期刊分区分布"></div>
+              <div id="impactChart" class="chart" role="img" aria-label="影响因子分布"></div>
+              <div id="topJournalChart" class="chart wide-chart" role="img" aria-label="主要发文期刊"></div>
             </div>
           </div>
 
           <aside class="panel section">
             <div class="section-head">
-              <h2>AI 中文综述</h2>
+              <h2><span class="section-index">02</span>AI 中文综述</h2>
               <span id="reviewMeta" class="section-note">等待生成</span>
             </div>
             <div id="reviewBox" class="review-box empty">检索后将基于文献摘要生成约 500 字中文分点综述。</div>
           </aside>
         </section>
 
-        <section class="grid-main">
+        <section class="grid-main literature-grid" id="literature">
           <div class="panel section">
             <div class="section-head">
-              <h2>文献结果</h2>
+              <h2><span class="section-index">03</span>文献结果</h2>
               <span id="articleMeta" class="section-note">暂无结果</span>
             </div>
             <div class="table-wrap">
@@ -462,21 +478,22 @@
 
           <aside class="panel section">
             <div class="section-head">
-              <h2>主题词频</h2>
+              <h2><span class="section-index">04</span>主题词频</h2>
               <span class="section-note">标题与摘要高频词</span>
             </div>
             <div id="wordCloud" class="word-cloud empty">暂无词频数据。</div>
           </aside>
         </section>
 
-        <section class="panel section">
+        <section class="panel section" id="ranking">
           <div class="section-head">
-            <h2>近 5 年影响力 Top 文献</h2>
+            <h2><span class="section-index">05</span>近 5 年影响力 Top 文献</h2>
             <span class="section-note">仅排序已匹配 IF 的文献</span>
           </div>
           <div id="topList" class="top-list empty">暂无 Top 文献。</div>
         </section>
       </div>
+      <footer class="workspace-footer"><span>PubMed Atlas</span><span>文献 · 证据 · 洞察</span><a href="#searchStage">返回检索 ↑</a></footer>
     </main>
 
     <script>
@@ -504,11 +521,26 @@
         topList: document.querySelector("#topList"),
       };
 
+      const chartAxis = {
+        axisLine: { lineStyle: { color: "#d0d0d7" } },
+        axisTick: { show: false },
+        axisLabel: { color: "#686970", fontSize: 11 },
+        splitLine: { lineStyle: { color: "#dedee4", type: "dashed" } },
+      };
+      echarts.registerTheme("pearl", {
+        color: ["#666774", "#8eaaa4", "#b2a1a5", "#a8acb6", "#d3d3d9"],
+        backgroundColor: "transparent",
+        textStyle: { fontFamily: "Microsoft YaHei, Arial, sans-serif", color: "#50515a" },
+        title: { textStyle: { color: "#55565f", fontSize: 12, fontWeight: "normal" } },
+        categoryAxis: chartAxis,
+        valueAxis: chartAxis,
+        tooltip: { backgroundColor: "#fafafd", borderColor: "#d9d9df", textStyle: { color: "#393a43", fontSize: 12 }, extraCssText: "box-shadow:0 8px 30px #33334410;border-radius:6px;" },
+      });
       const charts = {
-        year: echarts.init(document.querySelector("#yearChart")),
-        quartile: echarts.init(document.querySelector("#quartileChart")),
-        impact: echarts.init(document.querySelector("#impactChart")),
-        topJournal: echarts.init(document.querySelector("#topJournalChart")),
+        year: echarts.init(document.querySelector("#yearChart"), "pearl"),
+        quartile: echarts.init(document.querySelector("#quartileChart"), "pearl"),
+        impact: echarts.init(document.querySelector("#impactChart"), "pearl"),
+        topJournal: echarts.init(document.querySelector("#topJournalChart"), "pearl"),
       };
 
       function escapeHtml(value) {
@@ -623,8 +655,9 @@
       function renderCharts() {
         const yearData = state.analysis?.year_distribution ?? [];
         charts.year.setOption({
+          title: { text: "年度发文趋势", left: 8, top: 8 },
           tooltip: { trigger: "axis" },
-          grid: { left: 42, right: 18, top: 28, bottom: 36 },
+          grid: { left: 42, right: 18, top: 48, bottom: 36 },
           xAxis: { type: "category", data: yearData.map((item) => item.year) },
           yAxis: { type: "value", minInterval: 1 },
           series: [
@@ -632,21 +665,25 @@
               type: "line",
               smooth: true,
               data: yearData.map((item) => item.count),
-              areaStyle: { color: "rgba(31,95,153,0.12)" },
-              lineStyle: { color: "#1f5f99", width: 3 },
-              itemStyle: { color: "#1f5f99" },
+              areaStyle: { color: "rgba(116,117,135,0.10)" },
+              lineStyle: { color: "#777887", width: 2 },
+              itemStyle: { color: "#777887" },
             },
           ],
         });
 
         const quartileData = state.analysis?.quartile_distribution ?? [];
         charts.quartile.setOption({
+          title: { text: "期刊分区", left: 8, top: 8 },
+          legend: { bottom: 8, itemWidth: 8, itemHeight: 8, textStyle: { color: "#686970", fontSize: 10 } },
           tooltip: { trigger: "item" },
           series: [
             {
               type: "pie",
-              radius: ["48%", "72%"],
-              color: ["#236b61", "#1f5f99", "#7b8aa0", "#b7791f", "#c7d0dd"],
+              radius: ["40%", "62%"],
+              center: ["50%", "48%"],
+              label: { show: false },
+              itemStyle: { borderColor: "#eeeef2", borderWidth: 3 },
               data: quartileData.map((item) => ({ name: item.quartile, value: item.count })),
             },
           ],
@@ -654,29 +691,32 @@
 
         const impactData = state.analysis?.impact_factor_distribution ?? [];
         charts.impact.setOption({
+          title: { text: "影响因子分布", left: 8, top: 8 },
           tooltip: { trigger: "axis" },
-          grid: { left: 38, right: 14, top: 28, bottom: 36 },
+          grid: { left: 38, right: 14, top: 48, bottom: 36 },
           xAxis: { type: "category", data: impactData.map((item) => item.range) },
           yAxis: { type: "value", minInterval: 1 },
           series: [
             {
               type: "bar",
               data: impactData.map((item) => item.count),
-              itemStyle: { color: "#236b61", borderRadius: [4, 4, 0, 0] },
+              barMaxWidth: 22,
+              itemStyle: { color: "#8ba49f", borderRadius: [3, 3, 0, 0] },
             },
           ],
         });
 
         const topJournals = state.analysis?.top_journals ?? [];
         charts.topJournal.setOption({
+          title: { text: "主要发文期刊", left: 8, top: 8 },
           tooltip: { trigger: "axis" },
-          grid: { left: 160, right: 20, top: 24, bottom: 28 },
+          grid: { left: 140, right: 20, top: 48, bottom: 28 },
           xAxis: { type: "value", minInterval: 1 },
           yAxis: {
             type: "category",
             data: topJournals.map((item) => item.journal).reverse(),
             axisLabel: {
-              width: 140,
+              width: 120,
               overflow: "truncate",
             },
           },
@@ -684,7 +724,8 @@
             {
               type: "bar",
               data: topJournals.map((item) => item.count).reverse(),
-              itemStyle: { color: "#1f5f99", borderRadius: [0, 4, 4, 0] },
+              barMaxWidth: 14,
+              itemStyle: { color: "#9696a5", borderRadius: [0, 3, 3, 0] },
             },
           ],
         });
