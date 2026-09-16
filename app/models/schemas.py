@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field
-from typing import Literal
 
 
 class SearchRequest(BaseModel):
@@ -43,9 +42,4 @@ class TopImpactRequest(AnalyzeRequest):
 
 
 class ReviewRequest(AnalyzeRequest):
-    articles: list[Article] = Field(default_factory=list, max_length=100)
-    basis: Literal["search_results", "top_impact"] = "search_results"
-
-
-class ImpactSearchRequest(BaseModel):
-    keyword: str = Field(..., min_length=1, max_length=200)
+    pass

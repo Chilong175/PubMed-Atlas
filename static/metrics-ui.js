@@ -2,18 +2,7 @@ const metricsFile = document.querySelector('#metricsFile');
 const importStatus = document.querySelector('#metricsImportStatus');
 
 function metricsSourceText(info) {
-  const sources = { demo: 'Demo 示例表（未经权威来源核验）', publisher: '出版社公开指标', imported: '用户导入指标表' };
-  return `${sources[info.data_source] || '本地指标表'} · ${info.journal_count} 种期刊 · 指标年份 ${(info.source_years || [info.source_year]).join('、')}`;
-}
-
-function metricSourceHtml(source) {
-  try {
-    const url = new URL(source);
-    if (url.protocol === 'https:' || url.protocol === 'http:') {
-      return `<a href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url.hostname)}</a>`;
-    }
-  } catch (_) {}
-  return escapeHtml(source || '本地表未收录');
+  return `${info.data_source === 'demo' ? 'Demo 示例表（未经权威来源核验）' : '用户导入指标表'} · ${info.journal_count} 种期刊 · 指标年份 ${(info.source_years || [info.source_year]).join('、')}`;
 }
 
 async function refreshMetricsStatus() {
@@ -24,9 +13,7 @@ async function refreshMetricsStatus() {
     document.querySelector('#metricsTableStatus').textContent = metricsSourceText(info);
     document.querySelector('#metricsSourceHint').textContent = info.data_source === 'demo'
       ? '当前使用 Demo 示例指标，未经权威来源核验，仅供演示。'
-      : info.data_source === 'publisher'
-        ? '出版社公开指标快照；非全量 JCR 数据库。分区按来源披露，未公布时留空；IF 缺失不参与排序。'
-        : '当前使用用户导入指标；缺失值不参与排序。';
+      : '当前使用用户导入指标；缺失值不参与排序。';
   } catch (error) {
     document.querySelector('#metricsTableStatus').textContent = error.message;
   }

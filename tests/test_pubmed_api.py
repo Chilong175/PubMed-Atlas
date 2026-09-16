@@ -16,7 +16,7 @@ class PubMedApiAnalysisTest(TestCase):
                 "title": "Cancer immunotherapy response",
                 "abstract": "Immunotherapy response biomarker.",
                 "year": 2025,
-                "journal": "Frontiers in Oncology",
+                "journal": "Cancer Cell",
                 "authors": ["Zhang Y"],
                 "doi": "10.1000/one",
             },
@@ -53,7 +53,7 @@ class PubMedApiAnalysisTest(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertEqual([article["pmid"] for article in payload["articles"]], ["1"])
-        self.assertEqual(payload["articles"][0]["journal"], "Frontiers in Oncology")
+        self.assertEqual(payload["articles"][0]["journal"], "Cancer Cell")
 
     def test_review_returns_fallback_when_ai_key_is_unavailable(self) -> None:
         response = self.client.post(
@@ -83,15 +83,6 @@ class PubMedApiAnalysisTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["review"], "1. 中文综述")
         self.assertEqual(len(mock_generate_review.call_args.args[0]), 2)
-        self.assertIsNotNone(mock_generate_review.call_args.args[0][0].impact_factor)
-
-    @patch('app.api.pubmed.generate_review')
-    def test_review_preserves_top_impact_basis(self, generate):
-        generate.return_value = {'review': 'test', 'used_fallback': False, 'source_count': 2}
-        response = self.client.post('/api/review', json={'articles':self.articles, 'basis':'top_impact'})
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['basis'], 'top_impact')
-        self.assertEqual(response.json()['input_count'], 2)
 
     @patch("app.api.pubmed.PubMedClient.search")
     def test_search_uses_mock_data_when_pubmed_fails(self, mock_search) -> None:

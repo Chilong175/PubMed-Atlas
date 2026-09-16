@@ -66,7 +66,7 @@ class JournalMetricsTest(TestCase):
 
     def test_imported_table_does_not_fall_back_to_demo(self):
         import_metrics(CSV)
-        article = PubMedArticle('1', 'Title', '', 2025, 'Frontiers in Oncology', [])
+        article = PubMedArticle('1', 'Title', '', 2025, 'Cancer Cell', [])
         self.assertIsNone(analyze_articles([article])['articles'][0]['impact_factor'])
 
     def test_zero_if_empty_quartile_and_mixed_years(self):

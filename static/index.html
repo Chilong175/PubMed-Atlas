@@ -355,9 +355,9 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="/static/scene.css?v=5" />
+    <link rel="stylesheet" href="/static/scene.css?v=4" />
     <script type="module" src="/static/scene.js"></script>
-    <script defer src="/static/metrics-ui.js?v=2"></script>
+    <script defer src="/static/metrics-ui.js"></script>
   </head>
   <body>
     <main>
@@ -386,16 +386,16 @@
             <select id="limit" class="native-limit" aria-label="返回数量">
               <option value="10">返回 10 条</option>
               <option value="20" selected>返回 20 条</option>
-              <option value="30">返回 30 条</option>
-              <option value="40">返回 40 条</option>
+              <option value="50">返回 50 条</option>
+              <option value="100">返回 100 条</option>
             </select>
             <div class="limit-picker" id="limitPicker">
               <button class="limit-trigger" id="limitTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">返回 20 条 <span aria-hidden="true">⌄</span></button>
               <div class="limit-menu" id="limitMenu" role="listbox" aria-label="返回数量">
                 <button type="button" role="option" data-value="10">返回 10 条</button>
                 <button type="button" role="option" data-value="20" aria-selected="true">返回 20 条</button>
-                <button type="button" role="option" data-value="30">返回 30 条</button>
-                <button type="button" role="option" data-value="40">返回 40 条</button>
+                <button type="button" role="option" data-value="50">返回 50 条</button>
+                <button type="button" role="option" data-value="100">返回 100 条</button>
               </div>
             </div>
             <button id="searchBtn" class="primary" type="button">检索分析</button>
@@ -430,7 +430,7 @@
             <div class="metric-note">可参与影响力排序</div>
           </div>
           <div class="panel metric">
-            <div class="metric-label">IF 待补充</div>
+            <div class="metric-label">暂无指标数据</div>
             <div id="metricUnknown" class="metric-value">--</div>
             <div class="metric-note">本地表暂未匹配</div>
           </div>
@@ -475,10 +475,6 @@
               <span id="reviewMeta" class="section-note">等待生成</span>
             </div>
             <div id="reviewBox" class="review-box empty">检索后将基于文献摘要生成约 500 字中文分点综述。</div>
-            <details id="reviewSources" hidden>
-              <summary>摘要来源</summary>
-              <ol id="reviewSourceList"></ol>
-            </details>
           </aside>
         </section>
 
@@ -521,10 +517,9 @@
 
         <section class="panel section" id="ranking">
           <div class="section-head">
-            <h2><span class="section-index">05</span>近 5 年期刊 IF 排序</h2>
-            <button type="button" id="searchTop100">检索 Top 100</button>
+            <h2><span class="section-index">05</span>近 5 年影响力 Top 文献</h2>
+            <span class="section-note">仅对本次返回且已匹配 IF 的文献排序，展示前 8 篇；期刊 IF 不等于论文影响力。</span>
           </div>
-          <p class="section-note" id="rankingScope">当前结果排序；期刊 IF 不等于单篇论文影响力。</p>
           <div id="topList" class="top-list empty">暂无 Top 文献。</div>
         </section>
       </div>
@@ -606,7 +601,6 @@
       }
 
       async function runSearch() {
-        if (els.searchBtn.disabled) return;
         const keyword = els.keyword.value.trim();
         const limit = Number(els.limit.value);
         if (!keyword) {
@@ -615,7 +609,6 @@
         }
 
         els.searchBtn.disabled = true;
-        document.querySelector('#searchTop100').disabled = true;
         document.querySelector('#metricsFile').disabled = true;
         setStatus("正在检索 PubMed...");
         clearResultAreas();
@@ -651,15 +644,11 @@
           setStatus(`失败：${error.message}`, "error");
         } finally {
           els.searchBtn.disabled = false;
-          document.querySelector('#searchTop100').disabled = false;
           document.querySelector('#metricsFile').disabled = false;
         }
       }
 
       function clearResultAreas() {
-        state.review = null;
-        document.querySelector('#reviewSources').hidden = true;
-        document.querySelector('#reviewSourceList').replaceChildren();
         els.metricTotal.textContent = "--";
         els.metricReturned.textContent = "--";
         els.metricWithIf.textContent = "--";
@@ -786,7 +775,7 @@
         }
         els.articleRows.innerHTML = articles
           .map((article) => {
-            const impact = article.impact_factor === null ? "未收录" : Number(article.impact_factor).toFixed(1);
+            const impact = article.impact_factor === null ? "暂无指标数据" : Number(article.impact_factor).toFixed(1);
             const quartile = article.quartile || "Unknown";
             const badgeClass = quartile === "Unknown" ? "badge badge-unknown" : "badge";
             return `
@@ -795,8 +784,8 @@
                 <td>${escapeHtml(article.year || "未知")}</td>
                 <td>${escapeHtml(article.journal)}</td>
                 <td>${escapeHtml(impact)}</td>
-                <td><span class="${badgeClass}" title="${escapeHtml(article.quartile_system || '来源未提供分区，不影响 IF 匹配')}">${escapeHtml(quartile === 'Unknown' ? '未收录' : quartile)}</span></td>
-                <td>${metricSourceHtml(article.metric_source)}<br>${escapeHtml(article.metric_source_year || '—')}</td>
+                <td><span class="${badgeClass}" title="${escapeHtml(article.quartile_system || '')}">${escapeHtml(quartile === 'Unknown' ? '暂无分区数据' : quartile)}</span></td>
+                <td>${escapeHtml(article.metric_source || '未匹配')}<br>${escapeHtml(article.metric_source_year || '—')}</td>
                 <td>${escapeHtml(article.pmid)}</td>
               </tr>
             `;
@@ -824,18 +813,14 @@
 
       function renderTopImpact() {
         const articles = state.topImpact?.articles ?? [];
-        const ranking = state.topImpact;
-        document.querySelector('#rankingScope').textContent = ranking?.scope === 'covered_journals'
-          ? `${ranking.start_date} 至 ${ranking.end_date} · 指标库 ${ranking.journal_count} 种期刊范围内检索 · ${articles.length} 篇 · IF 年份 ${ranking.source_years.join('、')}。非全 PubMed 排名。${ranking.ranking_complete_within_table ? '' : '部分记录未能核验，排名可能不完整。'}`
-          : `当前返回文献中近五年已匹配 IF 的 ${articles.length} 篇；尚未进行独立 Top 100 检索。`;
         if (!articles.length) {
           els.topList.className = "top-list empty";
-          els.topList.textContent = "此范围内没有可排序的文献，未使用示例数据填充。";
+          els.topList.textContent = "当前返回文献中没有匹配到可排序的影响因子。";
           return;
         }
         els.topList.className = "top-list";
         els.topList.innerHTML = articles
-          .slice(0, 100)
+          .slice(0, 8)
           .map(
             (article, index) => `
               <div class="top-item">
@@ -860,26 +845,16 @@
         }
         els.reviewBox.className = "review-box";
         els.reviewBox.textContent = formatReviewText(state.review);
-        const basis = state.review.basis === 'top_impact' ? 'Top 排名文献' : '本次检索样本';
         els.reviewMeta.textContent = state.review.used_fallback
-          ? `未生成 · ${basis} · 已整理 ${state.review.source_count} 篇摘要`
-          : `${basis} · ${state.review.source_count}/${state.review.eligible_count ?? state.review.source_count} 篇有效摘要 · ${state.review.body_length ?? '约 500'} 字符`;
-        const sources = document.querySelector('#reviewSourceList');
-        sources.replaceChildren();
-        for (const source of state.review.sources || []) {
-          if (!/^\d+$/.test(source.pmid)) continue;
-          const li = document.createElement('li');
-          const link = document.createElement('a');
-          link.href = `https://pubmed.ncbi.nlm.nih.gov/${source.pmid}/`;
-          link.target = '_blank'; link.rel = 'noopener noreferrer';
-          link.textContent = `PMID ${source.pmid} · ${source.title}`;
-          li.append(link); sources.append(li);
-        }
-        document.querySelector('#reviewSources').hidden = !sources.children.length;
+          ? `兜底结果 · ${state.review.source_count} 篇摘要`
+          : `AI 生成 · ${state.review.source_count} 篇摘要`;
       }
 
       function formatReviewText(review) {
-        return review.review;
+        if (!review.used_fallback) {
+          return review.review;
+        }
+        return review.review.replace(/^当前为兜底综述示例，原因：.*?。\n?/, "");
       }
 
       window.addEventListener("resize", () => {
@@ -890,42 +865,6 @@
       });
 
       els.searchBtn.addEventListener("click", runSearch);
-      document.querySelector('#searchTop100').addEventListener('click', async () => {
-        const keyword = els.keyword.value.trim();
-        if (!keyword || els.searchBtn.disabled) return;
-        const button = document.querySelector('#searchTop100');
-        button.disabled = true;
-        els.searchBtn.disabled = true;
-        document.querySelector('#metricsFile').disabled = true;
-        document.querySelector('#rankingScope').textContent = `正在独立检索「${keyword}」近五年文献，按期刊 IF 从高到低扫描...`;
-        els.topList.textContent = '正在检索...';
-        state.review = null;
-        document.querySelector('#reviewSources').hidden = true;
-        els.reviewBox.textContent = '等待 Top 文献摘要...';
-        els.reviewMeta.textContent = 'Top 文献综述待生成';
-        try {
-          state.topImpact = await postJson('/api/top-impact/search', { keyword });
-          renderTopImpact();
-          try {
-            els.reviewBox.textContent = '正在整理 Top 文献摘要并生成综述...';
-            state.review = await postJson('/api/review', { articles: state.topImpact.articles, basis: 'top_impact' });
-            renderReview();
-          } catch (error) {
-            els.reviewBox.textContent = `综述生成失败：${error.message}`;
-            els.reviewMeta.textContent = 'Top 排名已完成，综述未生成';
-          }
-        } catch (error) {
-          state.topImpact = null;
-          document.querySelector('#rankingScope').textContent = `Top 100 检索失败：${error.message}`;
-          els.topList.textContent = '未生成排名，请重试。';
-          els.reviewBox.textContent = 'Top 检索失败，本次未生成综述。';
-          els.reviewMeta.textContent = '未生成';
-        } finally {
-          button.disabled = false;
-          els.searchBtn.disabled = false;
-          document.querySelector('#metricsFile').disabled = false;
-        }
-      });
       els.keyword.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           runSearch();
