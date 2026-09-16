@@ -42,7 +42,7 @@ class PubMedClient:
             return total_count, []
         return total_count, self.efetch(pmids)
 
-    def esearch(self, keyword: str, limit: int) -> tuple[int, list[str]]:
+    def esearch(self, keyword: str, limit: int, *, retstart: int = 0, sort: str = "relevance") -> tuple[int, list[str]]:
         response = self._request(
             "esearch.fcgi",
             {
@@ -50,11 +50,14 @@ class PubMedClient:
                 "term": keyword,
                 "retmode": "json",
                 "retmax": limit,
-                "sort": "relevance",
+                "sort": sort,
+                "retstart": retstart,
             },
         )
         payload = self._json(response, "PubMed esearch returned invalid JSON")
         result = payload.get("esearchresult", {})
+        if payload.get("error") or result.get("ERROR") or result.get("errorlist"):
+            raise PubMedClientError("PubMed rejected the search query")
         total_count = self._parse_count(result.get("count", 0))
         pmids = [str(item) for item in result.get("idlist", [])]
         return total_count, pmids
@@ -106,7 +109,7 @@ class PubMedClient:
             )
             response.raise_for_status()
         except requests.RequestException as exc:
-            raise PubMedClientError(f"PubMed {endpoint} request failed: {exc}") from exc
+            raise PubMedClientError(f"PubMed {endpoint} request failed") from exc
         return response
 
     @staticmethod

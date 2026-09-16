@@ -8,6 +8,8 @@ from app.services.analyzer import analyze_articles, load_journal_metrics, enrich
 from app.services.mock_data import load_mock_articles
 from app.services.pubmed_client import PubMedArticle, PubMedClient, PubMedClientError
 from app.services.reviewer import ReviewError, generate_review
+from app.models.schemas import ImpactSearchRequest
+from app.services.impact_search import search_top_impact
 
 
 router = APIRouter(prefix="/api", tags=["pubmed"])
@@ -92,16 +94,29 @@ def top_impact_pubmed_articles(payload: TopImpactRequest) -> dict:
 @router.post("/review")
 def review_pubmed_articles(payload: ReviewRequest) -> dict:
     settings = get_settings()
-    articles = [_to_pubmed_article(article) for article in payload.articles]
+    articles = enrich_articles([_to_pubmed_article(article) for article in payload.articles], load_journal_metrics())
     try:
-        return generate_review(
+        result = generate_review(
             articles,
             api_key=settings.ai_api_key,
             provider=settings.ai_provider,
             model=settings.ai_model,
             use_mock_on_error=settings.use_mock_on_error,
         )
+        return result | {"basis": payload.basis, "input_count": len(payload.articles)}
     except ReviewError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.post("/top-impact/search")
+def search_ranked_pubmed(payload: ImpactSearchRequest) -> dict:
+    keyword = payload.keyword.strip()
+    if not keyword:
+        raise HTTPException(status_code=422, detail="请输入检索关键词。")
+    try:
+        return search_top_impact(keyword, load_journal_metrics(), PubMedClient(api_key=get_settings().pubmed_api_key))
+    except PubMedClientError as exc:
+        # A real ranking must not be silently replaced by mock articles.
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 

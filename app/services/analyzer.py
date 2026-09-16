@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 from typing import Iterable
 
@@ -13,6 +14,7 @@ from app.services import journal_metrics
 
 
 DEFAULT_METRICS_PATH = Path("data/journal_metrics.csv")
+PUBLISHER_METRICS_PATH = Path("data/journal_metrics_publishers.csv")
 
 STOPWORDS = {
     "a",
@@ -74,7 +76,7 @@ class EnrichedArticle:
 
 def load_journal_metrics(path: str | Path | None = None) -> pd.DataFrame:
     path = Path(path) if path is not None else (
-        journal_metrics.IMPORTED_METRICS_PATH if journal_metrics.IMPORTED_METRICS_PATH.exists() else DEFAULT_METRICS_PATH
+        journal_metrics.IMPORTED_METRICS_PATH if journal_metrics.IMPORTED_METRICS_PATH.exists() else PUBLISHER_METRICS_PATH
     )
     df = pd.read_csv(path, dtype=str, keep_default_na=False)
     required = {"journal_name", "journal_alias", "impact_factor", "quartile", "source_year"}
@@ -91,7 +93,10 @@ def load_journal_metrics(path: str | Path | None = None) -> pd.DataFrame:
     df["source_year"] = pd.to_numeric(df["source_year"], errors="coerce").astype("Int64")
     df["journal_key"] = df["journal_name"].map(normalize_journal_name)
     df["alias_key"] = df["journal_alias"].map(normalize_journal_name)
-    df.attrs["data_source"] = "demo" if path == DEFAULT_METRICS_PATH else "imported"
+    df.attrs["data_source"] = (
+        "demo" if path == DEFAULT_METRICS_PATH else
+        "publisher" if path == PUBLISHER_METRICS_PATH else "imported"
+    )
     return df
 
 
@@ -222,17 +227,14 @@ def top_impact_articles(
     limit: int = 100,
 ) -> list[dict]:
     articles = list(articles)
-    known_years = [article.year for article in articles if article.year]
-    anchor_year = current_year or (max(known_years) if known_years else None)
-    if anchor_year is None:
-        return []
+    anchor_year = current_year or date.today().year
     min_year = anchor_year - years + 1
 
     candidates = [
         article
         for article in articles
         if article.year is not None
-        and article.year >= min_year
+        and min_year <= article.year <= anchor_year
         and article.impact_factor is not None
     ]
     candidates.sort(key=lambda article: (article.impact_factor or 0, article.year or 0), reverse=True)
