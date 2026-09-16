@@ -4,6 +4,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.core.config import Settings
 from app.services.pubmed_client import PubMedClientError
 
 
@@ -55,7 +56,10 @@ class PubMedApiAnalysisTest(TestCase):
         self.assertEqual([article["pmid"] for article in payload["articles"]], ["1"])
         self.assertEqual(payload["articles"][0]["journal"], "Frontiers in Oncology")
 
-    def test_review_returns_fallback_when_ai_key_is_unavailable(self) -> None:
+    @patch("app.api.pubmed.get_settings")
+    @patch("app.services.reviewer.requests.post")
+    def test_review_returns_fallback_when_ai_key_is_unavailable(self, mock_post, mock_settings) -> None:
+        mock_settings.return_value = Settings(ai_api_key="", ai_provider="deepseek", use_mock_on_error=True)
         response = self.client.post(
             "/api/review",
             json={"articles": self.articles, "current_year": 2025},
@@ -64,6 +68,8 @@ class PubMedApiAnalysisTest(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload["used_fallback"])
+        self.assertEqual(payload["failure_reason"], "未配置 AI_API_KEY")
+        mock_post.assert_not_called()
         self.assertIn("review", payload)
         self.assertGreaterEqual(payload["source_count"], 1)
 

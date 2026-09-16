@@ -171,6 +171,7 @@ def _call_deepseek(prompt: str, api_key: str, model: str) -> str:
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.3,
+                "thinking": {"type": "disabled"},
                 "max_tokens": 1800,
             },
             timeout=60,

@@ -112,6 +112,7 @@ class ReviewerTest(TestCase):
         self.assertTrue(400 <= result['body_length'] <= 650)
         self.assertEqual(result['source_pmids'], ['1'])
         self.assertEqual(mock_post.call_args.kwargs["json"]["model"], "deepseek-flash")
+        self.assertEqual(mock_post.call_args.kwargs["json"]["thinking"], {"type": "disabled"})
 
     def test_context_budget_counts_separators_and_deduplicates(self):
         articles = [PubMedArticle(str(i), 'Title', 'A' * 1000, 2025, 'Journal', []) for i in range(100)]
